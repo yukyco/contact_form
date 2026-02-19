@@ -1,0 +1,201 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お問い合わせフォーム（reCAPTCHA v3 + GAS）</title>
+    <!-- reCAPTCHA v3のスクリプト読み込み -->
+    <script src="https://www.google.com/recaptcha/api.js?render=6LeE-j4sAAAAAO5wYyyfsIY-9ssXEfwb1Ikluk7A"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .form-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .message {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            display: none;
+        }
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .policy {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+         .policy:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .recaptcha-badge {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>お問い合わせフォーム</h2>
+        
+        <div id="statusMessage" class="message"></div>
+        
+        <form id="contactForm">
+            <div class="form-group">
+                <label for="name">お名前 *</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">メールアドレス *</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="message">メッセージ *</label>
+                <textarea id="message" name="message" required></textarea>
+            </div>
+
+            <div class="policy">
+                <a href="https://good-inspiration.com/policy">個人情報保護方針</a>
+            </div>
+            
+            <button type="submit" id="submitBtn">送信する</button>
+            
+            <div class="recaptcha-badge">
+                このサイトはreCAPTCHAによって保護されています
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // reCAPTCHA v3のサイトキー
+        const SITE_KEY = '6LeE-j4sAAAAAO5wYyyfsIY-9ssXEfwb1Ikluk7A';
+        
+        // GASのウェブアプリURL（正しいURL）
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbyKtYSepyrs5fSLky96ksPTlUffW5DUNGzMFYFvI65InLSwWuG8pjpCrxFr9XdbNfEiew/exec';
+        
+        document.getElementById('contactForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '送信中...';
+            
+            try {
+                // reCAPTCHA v3トークンを取得
+                const token = await grecaptcha.execute(SITE_KEY, {action: 'submit'});
+                
+                // フォームデータを取得
+                const formData = {
+                    name: document.getElementById('name').value,
+                    email: document.getElementById('email').value,
+                    message: document.getElementById('message').value,
+                    recaptchaToken: token,
+                    action: 'submit'
+                };
+                
+                console.log('送信データ:', formData);
+                console.log('送信先URL:', GAS_URL);
+                
+                // GASに送信
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                console.log('送信完了');
+                
+                // 送信成功
+                showMessage('送信が完了しました！', 'success');
+                document.getElementById('contactForm').reset();
+                
+            } catch (error) {
+                console.error('エラー:', error);
+                showMessage('エラーが発生しました：' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '送信する';
+            }
+        });
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('statusMessage');
+            messageDiv.textContent = text;
+            messageDiv.className = 'message ' + type;
+            messageDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
